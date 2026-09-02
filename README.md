@@ -1,4 +1,4 @@
-# Tetris Python
+# Tetris Python (NOTE THIS IS CREATED BY AN AI I WILL REDO IN MY FREE TIME)
 
 A classic Tetris game implementation in Python using Pygame, compatible with Python 3.14+
 
