@@ -69,6 +69,42 @@ class Game:
         score = multipliers.get(lines, 0) * self.level
         self.score += score
     
+    def _hard_drop(self):
+        """Instantly drop the current tetromino to the bottom (hard drop/place)."""
+        while self.board.is_valid_position(self.current_tetromino):
+            self.current_tetromino.move_down()
+        
+        # Move back up one since we went one too far
+        self.current_tetromino.y -= 1
+        
+        # Place the tetromino
+        self._place_tetromino()
+    
+    def _place_tetromino(self):
+        """Place the current tetromino and spawn the next one."""
+        self.board.place_tetromino(self.current_tetromino)
+        
+        # Check for game over
+        if self.board.is_game_over(self.current_tetromino):
+            self.state = settings.GameState.GAME_OVER
+            return
+        
+        # Clear rows and update score
+        rows_cleared = self.board.clear_rows()
+        if rows_cleared > 0:
+            self._add_score(rows_cleared)
+            self.lines_cleared += rows_cleared
+            
+            # Update level
+            new_level = (self.lines_cleared // settings.LINES_PER_LEVEL) + 1
+            if new_level > self.level:
+                self.level = new_level
+                self._update_fall_speed()
+        
+        # Spawn new tetromino
+        self.current_tetromino = self.next_tetromino
+        self.next_tetromino = self._spawn_tetromino()
+    
     def handle_input(self):
         """Handle user input."""
         for event in pygame.event.get():
@@ -83,9 +119,6 @@ class Game:
                     if event.key == pygame.K_SPACE:
                         self.__init__()  # Restart game
                     continue
-                
-                if event.key == pygame.K_SPACE:
-                    self.state = settings.GameState.PAUSED if self.state == settings.GameState.PLAYING else settings.GameState.PLAYING
                 
                 if self.state == settings.GameState.PLAYING:
                     if event.key == pygame.K_LEFT:
@@ -108,6 +141,14 @@ class Game:
                         self.current_tetromino.rotate()
                         if not self.board.is_valid_position(self.current_tetromino):
                             self.current_tetromino.rotation_index = old_rotation
+                    
+                    elif event.key == pygame.K_SPACE:
+                        # Hard drop (place) button
+                        self._hard_drop()
+                
+                elif event.key == pygame.K_SPACE and self.state == settings.GameState.PAUSED:
+                    # Unpause the game
+                    self.state = settings.GameState.PLAYING
         
         return True
     
@@ -122,30 +163,9 @@ class Game:
                 self.current_tetromino.move_down()
                 
                 if not self.board.is_valid_position(self.current_tetromino):
-                    # Place tetromino
+                    # Move back up one since we went one too far
                     self.current_tetromino.y -= 1
-                    self.board.place_tetromino(self.current_tetromino)
-                    
-                    # Check for game over
-                    if self.board.is_game_over(self.current_tetromino):
-                        self.state = settings.GameState.GAME_OVER
-                        return
-                    
-                    # Clear rows and update score
-                    rows_cleared = self.board.clear_rows()
-                    if rows_cleared > 0:
-                        self._add_score(rows_cleared)
-                        self.lines_cleared += rows_cleared
-                        
-                        # Update level
-                        new_level = (self.lines_cleared // settings.LINES_PER_LEVEL) + 1
-                        if new_level > self.level:
-                            self.level = new_level
-                            self._update_fall_speed()
-                    
-                    # Spawn new tetromino
-                    self.current_tetromino = self.next_tetromino
-                    self.next_tetromino = self._spawn_tetromino()
+                    self._place_tetromino()
     
     def draw(self):
         """Draw game to screen."""
@@ -271,6 +291,26 @@ class Game:
             )
             pygame.draw.rect(self.screen, self.next_tetromino.color, rect)
             pygame.draw.rect(self.screen, (255, 255, 255), rect, 1)
+        
+        # Draw control instructions
+        self._draw_controls()
+    
+    def _draw_controls(self):
+        """Draw control instructions on screen."""
+        panel_x = self.board.width * settings.BLOCK_SIZE + 30
+        controls_y = self.board.height * settings.BLOCK_SIZE - 80
+        
+        controls = [
+            'CONTROLS:',
+            'LEFT/RIGHT - Move',
+            'UP - Rotate',
+            'DOWN - Soft Drop',
+            'SPACE - Place/Pause',
+        ]
+        
+        for i, control in enumerate(controls):
+            control_text = self.font_small.render(control, True, settings.COLORS['text'])
+            self.screen.blit(control_text, (panel_x, controls_y + i * 25))
     
     def _draw_pause_overlay(self):
         """Draw pause overlay."""
