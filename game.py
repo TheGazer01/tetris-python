@@ -35,7 +35,8 @@ class Game:
     
     def _spawn_tetromino(self):
         """Spawn a new random tetromino."""
-        shapes = list(settings.TETROMINO_SHAPES.keys())
+        from tetriminos import TETROMINO_SHAPES
+        shapes = list(TETROMINO_SHAPES.keys())
         shape = random.choice(shapes)
         return Tetromino(shape, self.board.width)
     
